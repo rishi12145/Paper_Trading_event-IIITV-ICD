@@ -1,0 +1,313 @@
+/* Import Poppins font */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background: url('/stock-bg.jpg') no-repeat center center fixed;
+    background-size: cover;
+    margin: 0;
+    padding: 20px;
+    color: #333;
+    transition: background 0.5s ease;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+body.trading-active {
+    background: linear-gradient(135deg, #E0F7FA 0%, #EDE7F6 100%);
+}
+
+.container {
+    max-width: 480px;
+    margin: 20px auto;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 30px;
+    border-radius: 15px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+    animation: fadeIn 0.5s ease-in;
+    transition: transform 0.3s;
+}
+
+.container:hover {
+    transform: translateY(-5px);
+}
+
+#trading-container {
+    max-width: 1200px;
+    background: #FFF;
+}
+
+h1 {
+    text-align: center;
+    color: #26A69A;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+h2 {
+    text-align: center;
+    color: #7E57C2;
+    font-weight: 400;
+    margin-top: 20px;
+}
+
+p {
+    text-align: center;
+    color: #555;
+}
+
+/* Countdown Timer */
+.countdown {
+    text-align: center;
+    margin: 15px 0;
+}
+
+.countdown h3 {
+    color: #D81B60;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.timer {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.timer span {
+    background: linear-gradient(45deg, #26A69A, #4DD0E1);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    min-width: 40px;
+    display: inline-block;
+    animation: spin 1.5s infinite;
+    box-sizing: border-box;
+}
+
+
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Card Layout */
+.card-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    justify-content: center;
+}
+
+.card {
+    background: #FFF;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s, box-shadow 0.2s;
+    min-width: 200px;
+    text-align: center;
+}
+
+.card:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+}
+
+.card p.highlight {
+    color: #D81B60; /* Highlighted stock prices */
+    font-weight: 600;
+}
+
+/* Stock Card Buttons */
+.card .stock-actions {
+    margin-top: 5px; /* Reduced margin to touch inputs */
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+}
+
+/* Table Layout for Transactions */
+.table-container {
+    margin-top: 20px;
+    overflow-x: auto; /* For horizontal scrolling on small screens */
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #FFF;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+th, td {
+    padding: 10px;
+    text-align: center;
+    border-bottom: 1px solid #E0E7FF;
+}
+
+th {
+    background: #26A69A;
+    color: white;
+    font-weight: 600;
+}
+
+tr:hover {
+    background: #F5F6FA;
+}
+/* Buttons */
+button {
+    padding: 8px 15px;
+    background: linear-gradient(45deg, #26A69A, #4DD0E1);
+    color: white;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: transform 0.2s, background 0.2s;
+    position: relative;
+    overflow: hidden;
+}
+
+button:hover {
+    transform: scale(1.1);
+    background: linear-gradient(45deg, #4DD0E1, #26A69A);
+}
+
+button:active {
+    transform: scale(0.95);
+}
+
+button::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.3s, height 0.3s;
+}
+
+button:active::after {
+    width: 100px;
+    height: 100px;
+}
+
+#return-home-btn {
+    background: linear-gradient(45deg, #7E57C2, #AB47BC);
+    margin: 10px auto;
+    display: block;
+}
+
+#return-home-btn:hover {
+    background: linear-gradient(45deg, #AB47BC, #7E57C2);
+}
+
+/* Form Elements */
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    max-width: 300px;
+    margin: 20px auto;
+}
+
+label {
+    font-weight: 600;
+    color: #26A69A;
+}
+
+input, select {
+    padding: 10px;
+    font-size: 16px;
+    border: 2px solid #E0E7FF;
+    border-radius: 8px;
+    transition: border-color 0.2s;
+}
+
+input:focus, select:focus {
+    border-color: #7E57C2;
+    outline: none;
+}
+
+input[type="number"] {
+    width: 60px;
+    margin-bottom: 0; /* Remove gap below input */
+}
+
+input[type="email"], input[type="password"], input[type="text"] {
+    width: 100%;
+    max-width: 280px;
+}
+
+select {
+    width: 150px;
+    margin-bottom: 0; /* Remove gap below select */
+}
+
+/* User Instruction */
+#user-instruction {
+    color: #D81B60;
+    font-weight: 600;
+    animation: pulse 2s infinite;
+}
+
+/* Chart */
+canvas {
+    margin-top: 20px;
+    background: #FFF;
+    border-radius: 10px;
+    padding: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+/* Links */
+a {
+    color: #26A69A;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+a:hover {
+    color: #7E57C2;
+}
+
+/* Footer */
+.footer {
+    margin-top: auto;
+    padding: 20px;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.9);
+    color: #555;
+    font-size: 14px;
+    border-top: 1px solid #E0E7FF;
+}
+
+.footer a {
+    color: #26A69A;
+}
+
+.footer a:hover {
+    color: #7E57C2;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
