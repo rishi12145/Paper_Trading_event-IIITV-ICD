@@ -146,25 +146,6 @@ app.post("/api/register", async (req, res) => {
   });
 });
 
-// Verify
-// app.post("/api/verify", (req, res) => {
-//   const { email, code } = req.body;
-//   db.get(`SELECT * FROM users WHERE email = ?`, [email], (err, row) => {
-//     if (err || !row || row.verified || row.verificationCode !== code) {
-//       return res.json({ success: false, message: "Invalid email or code" });
-//     }
-//     db.run(
-//       `UPDATE users SET verified = 1, verificationCode = NULL WHERE email = ?`,
-//       [email]
-//     );
-//     res.json({
-//       success: true,
-//       message: "Email verified",
-//       isAdmin: row.isAdmin === 1,
-//     });
-//   });
-// });
-
 // Login
 app.post("/api/login", (req, res) => {
   const { email, password } = req.body;
@@ -427,16 +408,18 @@ app.post("/api/sell", (req, res) => {
 });
 
 // Simulate stock price updates
+// Simulate stock price updates without random fluctuation
 setInterval(() => {
   db.all(`SELECT ticker, currentPrice FROM stocks`, (err, stocks) => {
     if (err) return console.error(err);
     stocks.forEach((stock) => {
-      const fluctuation = (Math.random() - 0.5) * 10; // Random change ±5
-      const newPrice = Math.max(10, stock.currentPrice + fluctuation);
+      const newPrice = stock.currentPrice; // No change in price (placeholder)
+
       db.run(`UPDATE stocks SET currentPrice = ? WHERE ticker = ?`, [
         newPrice,
         stock.ticker,
       ]);
+
       db.run(
         `INSERT INTO stock_history (ticker, price, time) VALUES (?, ?, ?)`,
         [stock.ticker, newPrice, new Date().toISOString()]
