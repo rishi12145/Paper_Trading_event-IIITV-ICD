@@ -125,7 +125,7 @@ const MU = 0.05 / (3600 / 5); // 5% drift over 1 hour
 // ADJUST HERE: Volatility (SIGMA) for 1-hour event
 // Example: 20% volatility over 1 hour, scaled to 5-second intervals
 // 0.2 / sqrt(720) ≈ 0.007453 per 5-second step
-const SIGMA = 0.2 / Math.sqrt(3600 / 5); // 20% volatility over 1 hour
+const SIGMA = 0.1 / Math.sqrt(3600 / 5); // 20% volatility over 1 hour
 const LAMBDA = 0.005; // Increased sensitivity for a shorter event
 // ADJUST HERE: Baseline volume for 1-hour event
 // Example: 100 shares as typical volume over 1 hour (much lower than a year-long simulation)
@@ -370,20 +370,20 @@ app.get("/api/leaderboard", (req, res) => {
     return res.status(401).json({ success: false, message: "Not logged in" });
 
   db.all(
-    `SELECT u.email, u.cash + COALESCE(SUM(p.quantity * s.currentPrice), 0) as totalValue,
-            COALESCE(SUM(t.profitLoss), 0) as profitLoss
-            FROM users u
-            LEFT JOIN portfolios p ON u.email = p.email
-            LEFT JOIN stocks s ON p.ticker = s.ticker
-            LEFT JOIN transactions t ON u.email = t.email AND t.profitLoss IS NOT NULL
-            WHERE u.isAdmin = 0
-            GROUP BY u.email, u.cash
-            ORDER BY totalValue DESC`,
+    `SELECT u.email, 
+            u.cash + COALESCE(SUM(t.profitLoss), 0) AS totalValue,
+            COALESCE(SUM(t.profitLoss), 0) AS profitLoss
+     FROM users u
+     LEFT JOIN transactions t ON u.email = t.email AND t.profitLoss IS NOT NULL
+     WHERE u.isAdmin = 0
+     GROUP BY u.email, u.cash
+     ORDER BY totalValue DESC`,
     (err, rows) => {
       if (err) return res.status(500).json({ error: "Database error" });
       res.json(rows);
     }
   );
+  
 });
 
 // Buy stock
