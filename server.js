@@ -19,40 +19,47 @@ const db = new sqlite3.Database("holotrade.db", (err) => {
 // Initialize tables
 db.serialize(() => {
   db.run(`CREATE TABLE IF NOT EXISTS users (
-        email TEXT PRIMARY KEY,
-        password TEXT,
-        cash REAL DEFAULT 100000,
-        verified INTEGER DEFAULT 0,
-        isAdmin INTEGER DEFAULT 0,
-        verificationCode TEXT
-    )`);
+          email TEXT PRIMARY KEY,
+          password TEXT,
+          cash REAL DEFAULT 100000,
+          verified INTEGER DEFAULT 0,
+          isAdmin INTEGER DEFAULT 0,
+          verificationCode TEXT
+      )`);
   db.run(`CREATE TABLE IF NOT EXISTS portfolios (
-        email TEXT,
-        ticker TEXT,
-        quantity INTEGER,
-        PRIMARY KEY (email, ticker)
-    )`);
+          email TEXT,
+          ticker TEXT,
+          quantity INTEGER,
+          PRIMARY KEY (email, ticker)
+      )`);
   db.run(`CREATE TABLE IF NOT EXISTS transactions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        email TEXT,
-        type TEXT,
-        ticker TEXT,
-        price REAL,
-        quantity INTEGER,
-        total REAL,
-        profitLoss REAL,
-        timestamp TEXT
-    )`);
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          email TEXT,
+          type TEXT,
+          ticker TEXT,
+          price REAL,
+          quantity INTEGER,
+          total REAL,
+          profitLoss REAL,
+          timestamp TEXT
+      )`);
   db.run(`CREATE TABLE IF NOT EXISTS stocks (
-        ticker TEXT PRIMARY KEY,
-        currentPrice REAL
-    )`);
+          ticker TEXT PRIMARY KEY,
+          currentPrice REAL
+      )`);
   db.run(`CREATE TABLE IF NOT EXISTS stock_history (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        ticker TEXT,
-        price REAL,
-        time TEXT
-    )`);
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          ticker TEXT,
+          price REAL,
+          time TEXT
+      )`);
+  // Add the fee column if it doesn't exist
+  db.run(`ALTER TABLE transactions ADD COLUMN fee REAL DEFAULT 0`, (err) => {
+    if (err && err.code !== "SQLITE_ERROR") {
+      // Ignore if column already exists
+      console.error("Error adding fee column:", err);
+    }
+  });
 });
 
 // Seed initial stocks if empty
@@ -104,6 +111,7 @@ db.get(`SELECT COUNT(*) as count FROM users WHERE isAdmin = 1`, (err, row) => {
 // Session store
 const loggedInUsers = {};
 // Configuration for price simulation
+const TRANSACTION_FEE_RATE = 0.01; // 1% transaction fee
 const TIME_STEP = 5000; // 5 seconds in milliseconds
 // ADJUST HERE: Drift (MU) for 1-hour event
 // Example: 5% growth over 1 hour (3600 seconds), scaled to 5-second intervals (3600 / 5 = 720 steps)
@@ -393,30 +401,38 @@ app.post("/api/buy", (req, res) => {
         (err, user) => {
           if (err || !user)
             return res.json({ success: false, message: "User not found" });
-          const total = price * quantity;
-          if (user.cash < total)
+
+          const tradeValue = price * quantity;
+          const fee = tradeValue * TRANSACTION_FEE_RATE; // 0.1% of trade value
+          const totalCost = tradeValue + fee;
+
+          if (user.cash < totalCost) {
             return res.json({
               success: false,
-              message: "Not enough cash for this user",
+              message: "Not enough cash (including transaction fee)",
             });
+          }
 
           db.run(`UPDATE users SET cash = cash - ? WHERE email = ?`, [
-            total,
+            totalCost,
             userEmail,
           ]);
           db.run(
-            `INSERT INTO portfolios (email, ticker, quantity) VALUES (?, ?, ?) ON CONFLICT(email, ticker) DO UPDATE SET quantity = quantity + ?`,
+            `INSERT INTO portfolios (email, ticker, quantity) VALUES (?, ?, ?) 
+     ON CONFLICT(email, ticker) DO UPDATE SET quantity = quantity + ?`,
             [userEmail, ticker, quantity, quantity]
           );
           db.run(
-            `INSERT INTO transactions (email, type, ticker, price, quantity, total, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO transactions (email, type, ticker, price, quantity, total, fee, timestamp) 
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               userEmail,
               "buy",
               ticker,
               price,
               quantity,
-              total,
+              tradeValue,
+              fee,
               new Date().toISOString(),
             ]
           );
@@ -445,20 +461,24 @@ app.post("/api/sell", (req, res) => {
         `SELECT quantity FROM portfolios WHERE email = ? AND ticker = ?`,
         [userEmail, ticker],
         (err, portfolio) => {
-          if (err || !portfolio || portfolio.quantity < quantity)
+          if (err || !portfolio || portfolio.quantity < quantity) {
             return res.json({
               success: false,
               message: "Not enough stock to sell",
             });
+          }
 
-          const total = price * quantity;
+          const tradeValue = price * quantity;
+          const fee = tradeValue * TRANSACTION_FEE_RATE; // 0.1% of trade value
+          const netProceeds = tradeValue - fee;
+
           db.get(
             `SELECT price FROM transactions WHERE email = ? AND ticker = ? AND type = 'buy' ORDER BY timestamp DESC LIMIT 1`,
             [userEmail, ticker],
             (err, buyRow) => {
               const profitLoss = buyRow ? (price - buyRow.price) * quantity : 0;
               db.run(`UPDATE users SET cash = cash + ? WHERE email = ?`, [
-                total,
+                netProceeds,
                 userEmail,
               ]);
               db.run(
@@ -470,15 +490,17 @@ app.post("/api/sell", (req, res) => {
                 [userEmail, ticker]
               );
               db.run(
-                `INSERT INTO transactions (email, type, ticker, price, quantity, total, profitLoss, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                `INSERT INTO transactions (email, type, ticker, price, quantity, total, profitLoss, fee, timestamp) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                   userEmail,
                   "sell",
                   ticker,
                   price,
                   quantity,
-                  total,
+                  tradeValue,
                   profitLoss,
+                  fee,
                   new Date().toISOString(),
                 ]
               );
