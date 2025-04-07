@@ -101,24 +101,108 @@ db.get(`SELECT COUNT(*) as count FROM users WHERE isAdmin = 1`, (err, row) => {
   }
 });
 
-// OPTIONAL: If you're resetting the database
-db.run(`CREATE TABLE IF NOT EXISTS users (
-    email TEXT PRIMARY KEY,
-    password TEXT,
-    cash REAL DEFAULT 100000,
-    verified INTEGER DEFAULT 1,
-    isAdmin INTEGER DEFAULT 0
-)`);
-
 // Session store
 const loggedInUsers = {};
+// Configuration for price simulation
+const TIME_STEP = 5000; // 5 seconds in milliseconds
+// ADJUST HERE: Drift (MU) for 1-hour event
+// Example: 5% growth over 1 hour (3600 seconds), scaled to 5-second intervals (3600 / 5 = 720 steps)
+// 0.05 / 720 = 0.00006944 per 5-second step
+const MU = 0.05 / (3600 / 5); // 5% drift over 1 hour
+// ADJUST HERE: Volatility (SIGMA) for 1-hour event
+// Example: 20% volatility over 1 hour, scaled to 5-second intervals
+// 0.2 / sqrt(720) ≈ 0.007453 per 5-second step
+const SIGMA = 0.2 / Math.sqrt(3600 / 5); // 20% volatility over 1 hour
+const LAMBDA = 0.005; // Increased sensitivity for a shorter event
+// ADJUST HERE: Baseline volume for 1-hour event
+// Example: 100 shares as typical volume over 1 hour (much lower than a year-long simulation)
+const BASELINE_VOLUME = 100; // Reduced to reflect 1-hour trading activity
 
-// Nodemailer setup
+// Function to calculate GBM price change
+function getGBMPriceChange(currentPrice, dt) {
+  const drift = MU * dt;
+  const volatility = SIGMA * Math.sqrt(dt) * (Math.random() - 0.5) * 2; // Normal random variable approximation
+  return currentPrice * (drift + volatility);
+}
+
+// Simulate stock price updates with GBM and market impact
+setInterval(() => {
+  db.all(`SELECT ticker, currentPrice FROM stocks`, (err, stocks) => {
+    if (err) return console.error(err);
+
+    // Aggregate orders from transactions in the last time step
+    const timeThreshold = new Date(Date.now() - TIME_STEP).toISOString();
+    db.all(
+      `SELECT ticker, type, SUM(quantity) as volume 
+       FROM transactions 
+       WHERE timestamp >= ? 
+       GROUP BY ticker, type`,
+      [timeThreshold],
+      (err, orders) => {
+        if (err) return console.error(err);
+
+        const orderImpact = {};
+        stocks.forEach(
+          (stock) => (orderImpact[stock.ticker] = { buy: 0, sell: 0 })
+        );
+
+        // Aggregate buy and sell volumes
+        orders.forEach((order) => {
+          if (order.type === "buy") {
+            orderImpact[order.ticker].buy = order.volume;
+          } else if (order.type === "sell") {
+            orderImpact[order.ticker].sell = order.volume;
+          }
+        });
+
+        // Update prices for each stock
+        stocks.forEach((stock) => {
+          const { buy, sell } = orderImpact[stock.ticker];
+          const netDemand = buy - sell;
+          const impactFactor = LAMBDA * (netDemand / BASELINE_VOLUME);
+
+          // Calculate GBM component
+          const priceChangeFromModel = getGBMPriceChange(
+            stock.currentPrice,
+            TIME_STEP / 1000
+          ); // Convert to seconds
+          const newPrice =
+            stock.currentPrice *
+            (1 + priceChangeFromModel / stock.currentPrice + impactFactor);
+
+          // Ensure price stays above a minimum threshold
+          const finalPrice = Math.max(10, newPrice);
+
+          // Update stocks table
+          db.run(
+            `UPDATE stocks SET currentPrice = ? WHERE ticker = ?`,
+            [finalPrice, stock.ticker],
+            (err) => {
+              if (err) console.error(`Error updating ${stock.ticker}:`, err);
+            }
+          );
+
+          // Record in stock history
+          db.run(
+            `INSERT INTO stock_history (ticker, price, time) VALUES (?, ?, ?)`,
+            [stock.ticker, finalPrice, new Date().toISOString()],
+            (err) => {
+              if (err)
+                console.error(
+                  `Error logging history for ${stock.ticker}:`,
+                  err
+                );
+            }
+          );
+        });
+      }
+    );
+  });
+}, TIME_STEP);
 
 // API Endpoints
 
 // Register
-// Register (without OTP verification)
 app.post("/api/register", async (req, res) => {
   const { email, password, isAdmin } = req.body;
   const hashedPassword = await bcrypt.hash(password, 10);
@@ -140,7 +224,7 @@ app.post("/api/register", async (req, res) => {
           success: true,
           message: "Registered successfully",
           redirect: "/",
-        }); // home page redirect
+        });
       }
     );
   });
@@ -406,27 +490,6 @@ app.post("/api/sell", (req, res) => {
     }
   );
 });
-
-// Simulate stock price updates
-// Simulate stock price updates without random fluctuation
-setInterval(() => {
-  db.all(`SELECT ticker, currentPrice FROM stocks`, (err, stocks) => {
-    if (err) return console.error(err);
-    stocks.forEach((stock) => {
-      const newPrice = stock.currentPrice; // No change in price (placeholder)
-
-      db.run(`UPDATE stocks SET currentPrice = ? WHERE ticker = ?`, [
-        newPrice,
-        stock.ticker,
-      ]);
-
-      db.run(
-        `INSERT INTO stock_history (ticker, price, time) VALUES (?, ?, ?)`,
-        [stock.ticker, newPrice, new Date().toISOString()]
-      );
-    });
-  });
-}, 5000);
 
 // Serve frontend
 app.get("*", (req, res) => {
