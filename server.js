@@ -116,8 +116,8 @@ const loggedInUsers = {};
 //----------------------------------------
 
 // Configuration for price simulation
-const TRANSACTION_FEE_RATE = 0.01; // 1% transaction fee
-const TIME_STEP = 5000; // 5 seconds in milliseconds
+const TRANSACTION_FEE_RATE = 0.005; // 0.5% transaction fee
+const TIME_STEP = 10000; // 5 seconds in milliseconds
 // ADJUST HERE: Drift (MU) for 1-hour event
 // Example: 5% growth over 1 hour (3600 seconds), scaled to 5-second intervals (3600 / 5 = 720 steps)
 // 0.05 / 720 = 0.00006944 per 5-second step
@@ -383,7 +383,6 @@ app.get("/api/leaderboard", (req, res) => {
       res.json(rows);
     }
   );
-  
 });
 
 // Buy stock
