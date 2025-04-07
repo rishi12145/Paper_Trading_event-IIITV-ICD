@@ -110,6 +110,11 @@ db.get(`SELECT COUNT(*) as count FROM users WHERE isAdmin = 1`, (err, row) => {
 
 // Session store
 const loggedInUsers = {};
+
+//----------------------------------------
+//This section contains all the variables which can impace the STOCK VALUE.
+//----------------------------------------
+
 // Configuration for price simulation
 const TRANSACTION_FEE_RATE = 0.01; // 1% transaction fee
 const TIME_STEP = 5000; // 5 seconds in milliseconds

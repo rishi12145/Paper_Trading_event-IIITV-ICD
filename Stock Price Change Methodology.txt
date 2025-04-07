@@ -1,0 +1,71 @@
+Stock Price Change Methodology in the 1-Hour Trading Event
+
+Overview of Stock Price Change Methodology
+Stock prices in the event are updated every 5 seconds using a two-part model:
+1. Geometric Brownian Motion (GBM): A mathematical model that simulates natural price evolution with a slight upward trend (drift) and random fluctuations (volatility).
+2. Market Impact from Participant Orders: An adjustment based on the net buying or selling activity of players, reflecting supply and demand dynamics.
+---------------
+Note : The portfolio value of user also changes when he buys or sells a stock as a TRANSACTION FEE is charged to him of 1%.
+---------------
+These components are combined into a single price update formula, with a minimum price constraint to ensure realism. The process repeats every 5 seconds throughout the 1-hour event, driven by a continuous loop that fetches current prices and recent player transactions from the database.
+
+Detailed Methodology
+
+1. Geometric Brownian Motion (GBM)
+- Purpose: Provides a baseline price movement that mimics real-world stock behavior, with a tendency to grow over time (drift) and unpredictable short-term wiggles (volatility).
+- How It Works:
+  - Drift: Represents a consistent upward trend in prices. For the event, it’s set to achieve a 5% increase over the 1-hour duration. Since the hour has 3600 seconds and updates occur every 5 seconds, there are 720 steps. The drift per step is therefore 5% divided by 720, or approximately 0.006944% per 5 seconds. This small upward push compounds over the hour to reach the target growth.
+  - Volatility: Adds randomness to simulate market uncertainty. It’s set to a 20% standard deviation over the hour, scaled to 5-second intervals. This works out to about 0.745% volatility per step, meaning prices can fluctuate up or down by this amount (or more/less depending on randomness) every 5 seconds. The random component is drawn from a simple approximation of a normal distribution, ranging between -1 and 1.
+  - Calculation: For each stock, the current price is multiplied by a factor that combines the drift and volatility. The drift provides a tiny positive nudge, while volatility introduces a larger, random swing (positive or negative). The result is an absolute price change that’s then converted to a percentage for the final update.
+- Explanation: This mimics how stocks move in real markets due to economic growth (drift) and unpredictable events or trader sentiment (volatility). Over 1 hour, without player interference, prices would trend upward by about 5% but with noticeable zigzags.
+
+2. Market Impact from Participant Orders
+- Purpose: Allows players to influence prices through their trading actions, simulating how buying and selling pressure shifts market equilibrium.
+- How It Works:
+  - Order Aggregation: Every 5 seconds, the system looks at all transactions from the past 5 seconds. It sums up the total number of shares bought and sold for each stock. For example, if players bought 150 shares and sold 50 shares of a stock, these totals are collected.
+  - Net Demand: The difference between buy and sell volumes is calculated (e.g., 150 - 50 = 100). A positive difference means more buying than selling (upward pressure), while a negative difference means more selling (downward pressure).
+  - Impact Factor: This net demand is turned into a price adjustment using a formula. The adjustment depends on two factors:
+    - Sensitivity (Lambda): Set to 0.005, meaning a net demand equal to the baseline volume causes a 0.5% price change.
+    - Baseline Volume: Set to 100 shares, representing a "typical" trading volume for the 1-hour event. The net demand is divided by this baseline to normalize it, then multiplied by the sensitivity. For instance, a net demand of 100 shares results in a 0.5% increase (0.005 * 100 / 100), while 50 shares results in a 0.25% increase.
+  - Explanation: This reflects real-world dynamics where heavy buying pushes prices up (less supply, higher demand) and heavy selling pushes them down (more supply, lower demand). The baseline volume ensures the impact scales with the event’s size, and the sensitivity makes player actions noticeable but not overwhelming.
+
+3. Combining GBM and Market Impact
+- How It Works:
+  - Fractional Change: The GBM change (as a percentage of the current price) and the market impact factor are added together. For example, if GBM suggests a 0.7% increase and market impact adds 0.5%, the total is 1.2%.
+  - Price Update: The current price is multiplied by (1 + total fractional change). So, a 1.2% increase on a ₹100 stock becomes ₹101.20.
+  - Price Floor: After calculating the new price, it’s checked against a minimum value of ₹10. If it would fall below ₹10, it’s set to ₹10 instead. This prevents unrealistic negative or zero prices.
+- Explanation: Combining these ensures prices reflect both the natural market trend/randomness (GBM) and player-driven forces (market impact). The multiplicative approach aligns with how stock prices evolve proportionally in real markets.
+
+4. Timing and Execution
+- Frequency: Updates happen every 5 seconds, meaning there are 720 updates over the 1-hour event (3600 / 5).
+- Process: At each step, the system:
+  1. Fetches the current price of each stock.
+  2. Gathers buy/sell volumes from the last 5 seconds.
+  3. Calculates the GBM change and market impact.
+  4. Applies the combined effect to update the price.
+  5. Saves the new price and logs it for historical tracking (e.g., for charts).
+- Explanation: The 5-second interval balances responsiveness with computational simplicity, giving players frequent feedback on their actions while keeping the simulation manageable.
+
+Example Scenario
+- Starting Point: Stock "TATA" at ₹100.
+- Player Actions: In the last 5 seconds, players buy 150 shares and sell 50 shares.
+- GBM:
+  - Drift: ~0.006944% (tiny upward push).
+  - Volatility: Randomly ~0.7% (e.g., due to a positive random draw).
+  - Total GBM: ~0.706944% increase.
+- Market Impact:
+  - Net Demand: 150 - 50 = 100 shares.
+  - Impact Factor: 0.005 * (100 / 100) = 0.5% increase.
+- Combined Effect:
+  - Total change: 0.706944% + 0.5% ≈ 1.206944%.
+  - New price: ₹100 * (1 + 0.01206944) ≈ ₹101.21.
+  - After floor check: Still ₹101.21 (well above ₹10).
+- Result: The price rises to ₹101.21 due to both natural growth/randomness and player buying pressure.
+
+Summary of How Prices Change
+- Every 5 Seconds: The system updates all stock prices.
+- GBM Contribution: Prices trend upward by ~5% over the hour with 20% volatility, creating a mix of steady growth and random swings.
+- Player Contribution: Buy/sell imbalances shift prices, with a net demand of 100 shares causing a 0.5% change (up or down), scaled by activity.
+- Final Price: The current price is adjusted by the combined percentage change, capped at a minimum of ₹10.
+
+This methodology blends realistic market simulation (GBM) with interactive player influence (market impact), tailored to a 1-hour event where small, frequent updates keep the game dynamic and engaging.
